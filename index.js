@@ -169,30 +169,27 @@ app.command('/fin_de_turno', async ({ ack, payload, context, say, message }) => 
 app.view('fin_de_turno', async ({ ack, body, view,context, say }) => {
   //console.log(view);
   final = new Date()
-  var year = final.getFullYear();
-  var month = final.getMonth(); 
-  var day = final.getDate();
-  var fecha = year + "/" + (month+1) + "/" + day;
-  if (final.getHours()>=4)
+  var fin_year = final.getFullYear();
+  var fin_month = final.getMonth()+1; 
+  var fin_day = final.getDate();
+  var fin_hour = final.getHours();
+  var fin_min = final.getMinutes();
+  if (fin_hour<4)
   {
-    if(final.getMinutes()<10)
-    {
-      hora_final = (final.getHours()-4) + ":0" + final.getMinutes();
-    } else
-    {
-      hora_final = (final.getHours()-4) + ":" + final.getMinutes();
-    }
-  }
-  else
+    fin_hour = 20 + fin_hour;
+    fin_day -=1;
+  } else 
   {
-    if(final.getMinutes()<10)
-    {
-      hora_final = (24+(final.getHours()-4)) + ":0" + final.getMinutes();
-    } else
-    {
-      hora_final = (24+(final.getHours()-4)) + ":" + final.getMinutes();
-    }
+    fin_hour -=4;
   }
+  if(fin_min<10)
+  {
+    hora_final = fin_hour + ":0" + fin_min;
+  } else
+  {
+    hora_final = fin_hour + ":" + fin_min;
+  }
+  var fecha = fin_year + "/" + fin_month + "/" + fin_day;
   var message = view["state"]["values"]["Porcentaje_activo"]["Porcentaje_activo"]["value"];
   try {
     var info = await app.client.conversations.info({
@@ -238,38 +235,29 @@ app.view('fin_de_turno', async ({ ack, body, view,context, say }) => {
       var Database = db.collection("Time_In/Out");
       Database.find({Usuario: usuario_final, Hora_final:''}).toArray(function(err,lista){
         if (err) throw err
-        console.log("Hora de inicio: "+lista[0].Hora_inicio)
-        var ini=lista[0].Hora_inicio
-        var ini_array = ini.split(":");
-        var ini_hour = parseInt(ini_array[0], 10);
-        var ini_min = parseInt(ini_array[1], 10);
-        if(ini_hour<(final.getHours()-4))
+        //console.log(lista)
+        if (lista.length>0)
         {
-          if (final.getMinutes()<ini_min)
-          {
-            var horas_total = (final.getHours()-5) - ini_hour;
-            var minutos_total = (final.getMinutes()+60) - ini_min;
-          }
-          else
-          {
-            var horas_total = (final.getHours()-4) - ini_hour;
-            var minutos_total = final.getMinutes() - ini_min;
-          }
-        } else
-        {
-          if (final.getMinutes()<ini_min)
-          {
-            var horas_total = (24+(final.getHours()-5)) - ini_hour;
-            var minutos_total = (final.getMinutes()+60) - ini_min;
-          }
-          else
-          {
-            var horas_total = (24+(final.getHours()-4)) - ini_hour;
-            var minutos_total = final.getMinutes() - ini_min;
-          }
+          var ini=lista[0].Hora_inicio
+          var ini_m=lista[0].Fecha_inicio
+          var ini_array = ini.split(":");
+          var inim_array = ini_m.split("/");
+          var ini_hour = parseInt(ini_array[0], 10);
+          var ini_min = parseInt(ini_array[1], 10);
+          var ini_year = parseInt(inim_array[0],10);
+          var ini_month = parseInt(inim_array[1],10);
+          var ini_day = parseInt(inim_array[2],10);
         }
-        var efect = (horas_total*60)+minutos_total;
-        var tiempo_efectivo = efect*porcentaje;
+        var date1 = new Date(ini_year, ini_month-1, ini_day, ini_hour, ini_min, 0, 0);
+        var date2 = new Date(fin_year, fin_month-1, fin_day, fin_hour, fin_min, 0, 0);
+        console.log(date1);
+        console.log(date2);
+        var date11 = date1.getTime();
+        var date22 = date2.getTime();
+        var findate = (date22-date11)/60000;
+        var horas_total = Math.floor(findate/60);
+        var minutos_total = Math.round(((findate%60)+Number.EPSILON)*100)/100;
+        var tiempo_efectivo = findate*porcentaje;
         var efect_hor = Math.floor(tiempo_efectivo/60);
         var efect_min = Math.round(((tiempo_efectivo%60)+Number.EPSILON)*100)/100;
         if(lista.length==1)
@@ -299,7 +287,7 @@ app.view('fin_de_turno', async ({ ack, body, view,context, say }) => {
           const result = app.client.chat.postMessage({
             token: context.botToken,
             channel: canal_fin,
-            text: `Lo siento <@${usuario_fin}>, existe mas de una sesion con su usuario, contactese con su supervisor para solucionar el problema`
+            text: `Lo siento <@${usuario_fin}>, existe mas de una sesion abierta con su usuario, contactese con su supervisor para solucionar el problema`
           });
         }
       });
